@@ -29,7 +29,7 @@ if (args[2] === "decode") {
     try {
         const decoded = decodeBencode(bencodedValue);
         console.log(JSON.stringify(decoded));
-    } catch (error) {
+    } catch (error: Error | any) {
         console.error(error.message);
     }
 }
