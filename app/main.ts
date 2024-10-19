@@ -1,7 +1,3 @@
-// Examples:
-// - decodeBencode("5:hello") -> "hello"
-// - decodeBencode("10:hello12345") -> "hello12345"
-
 import * as console from "node:console";
 import * as fs from "node:fs";
 import {dictEncoder, intEncoder, stringEncoder} from "./encoders.ts";
@@ -55,11 +51,18 @@ function getInfoFromTorrent(fileName: string): string {
         flag: "r"
     });
 
-    const decodedDictionary = dictDecoder(bencodedValue)[0];
+    const decodedDictionary = dictDecoder(bencodedValue)[0] as {
+        announce: string,
+        info: {
+            length: number,
+            name: string,
+            "piece length": number,
+            pieces: string
+        }
+    };
     const infoDict: any = decodedDictionary["info"];
     const encodedInfoDict = encodeBencode(infoDict);
     const infoHexString = convertToHash(encodedInfoDict);
-    const decode = decodeBencode(encodedInfoDict);
 
     return `Info Hash: ${infoHexString} Tracker URL: ${decodedDictionary["announce"]}} Length: ${infoDict["length"]}`
 }
@@ -68,8 +71,6 @@ const args = process.argv;
 const bencodedValue = args[3];
 
 if (args[2] === "decode") {
-    // You can use print statements as follows for debugging, they'll be visible when running tests.
-    // Uncomment this block to pass the first stage
     try {
         const [decoded, decodedLength] = decodeBencode(bencodedValue);
         console.log(JSON.stringify(decoded));
@@ -80,22 +81,6 @@ if (args[2] === "decode") {
 
 if (args[2] === "info") {
     try {
-        // const torrentContent = fs.readFileSync(bencodedValue, "utf-8");
-        // const [decodedValue, _] = decodeBencode(torrentContent);
-        // const torrent = decodedValue as {
-        //     announce: string
-        //     info: {
-        //         length: number,
-        //         name: string,
-        //         "piece length": number,
-        //         pieces: string
-        //     }
-        // }
-        //
-        // if (!torrent.announce || !torrent.info) {
-        //     throw new Error("Invalid torrent file");
-        // }
-
         const info = getInfoFromTorrent(bencodedValue);
         console.log(JSON.stringify(info))
     } catch (error: Error | any) {
