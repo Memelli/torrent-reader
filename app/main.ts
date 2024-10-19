@@ -2,7 +2,7 @@
 // - decodeBencode("5:hello") -> "hello"
 // - decodeBencode("10:hello12345") -> "hello12345"
 
-type TBencondedValue = string | number | Array<TBencondedValue>
+type TBencondedValue = string | number | Array<TBencondedValue> | { [key: string]: TBencondedValue }
 
 function decodeBencode(bencodedValue: string): [TBencondedValue, number] {
    const isString = (val: string): boolean => {
@@ -14,6 +14,7 @@ function decodeBencode(bencodedValue: string): [TBencondedValue, number] {
    }
 
    const isList = (val: string): boolean => val[0] === "l";
+   const isDictionary = (val: string): boolean => val[0] === "d";
 
     // IF is string
     if (isString(bencodedValue)) {
@@ -55,6 +56,25 @@ function decodeBencode(bencodedValue: string): [TBencondedValue, number] {
         }
 
         return [decodedList, offset + 1];
+    }
+
+    // IF is dictionary
+    if (isDictionary(bencodedValue)) {
+        const decodedDict: { [key: string]: TBencondedValue } = {};
+        let offset = 1;
+        while (offset < bencodedValue.length) {
+            if (bencodedValue[offset] === "e") {
+                break;
+            }
+
+            const [decodedKey, keyLength] = decodeBencode(bencodedValue.substring(offset));
+            offset += keyLength;
+            const [decodedValue, valueLength] = decodeBencode(bencodedValue.substring(offset));
+            offset += valueLength;
+            decodedDict[decodedKey as string] = decodedValue;
+        }
+
+        return [decodedDict, offset + 1];
     }
 
     throw new Error("Only strings are supported at the moment");
