@@ -4,10 +4,13 @@
 
 import * as console from "node:console";
 import * as fs from "node:fs";
+import {dictEncoder, intEncoder, stringEncoder} from "./encoders.ts";
+import {dictDecoder, intDecoder, listDecoder, stringDecoder} from "./decoders.ts";
+import {convertToHash} from "./convert-to-hash.ts";
 
-type TBencondedValue = string | number | Array<TBencondedValue> | { [key: string]: TBencondedValue }
+export type TBencondedValue = string | number | Array<TBencondedValue> | { [key: string]: TBencondedValue }
 
-function decodeBencode(bencodedValue: string): [TBencondedValue, number] {
+export function decodeBencode(bencodedValue: string): [TBencondedValue, number] {
    const isString = (val: string): boolean => {
        return !isNaN(parseInt(val.split(":")[0]))
    }
@@ -21,66 +24,44 @@ function decodeBencode(bencodedValue: string): [TBencondedValue, number] {
 
     // IF is string
     if (isString(bencodedValue)) {
-        const length = parseInt(bencodedValue.split(":")[0]);
-        const firstColonIndex = bencodedValue.indexOf(":");
-        if (firstColonIndex === -1) {
-            throw new Error("Invalid encoded value");
-        }
-
-        return [bencodedValue.substring(firstColonIndex + 1, firstColonIndex + 1 + length), firstColonIndex + 1 +  length];
+        return stringDecoder(bencodedValue);
     }
 
     // IF is number
     if (isInt(bencodedValue)) {
-        const endIndex = bencodedValue.indexOf("e");
-        if (endIndex === -1) {
-            throw new Error("Invalid encoded value");
-        }
-
-        return [parseInt(bencodedValue.substring(1, endIndex)), endIndex + 1];
+        return intDecoder(bencodedValue);
     }
 
     // IF is list
     if (isList(bencodedValue)) {
-        const endIndex = bencodedValue.indexOf("e");
-        if (endIndex === -1) {
-            throw new Error("Invalid encoded value");
-        }
-        const decodedList: TBencondedValue[] = [];
-        let offset = 1;
-        while(offset < bencodedValue.length) {
-            if(bencodedValue[offset] === "e") {
-                break;
-            }
-
-            const [decodedValue, encodedLength] = decodeBencode(bencodedValue.substring(offset));
-            decodedList.push(decodedValue);
-            offset += encodedLength;
-        }
-
-        return [decodedList, offset + 1];
+        return listDecoder(bencodedValue);
     }
 
     // IF is dictionary
     if (isDictionary(bencodedValue)) {
-        const decodedDict: { [key: string]: TBencondedValue } = {};
-        let offset = 1;
-        while (offset < bencodedValue.length) {
-            if (bencodedValue[offset] === "e") {
-                break;
-            }
-
-            const [decodedKey, keyLength] = decodeBencode(bencodedValue.substring(offset));
-            offset += keyLength;
-            const [decodedValue, valueLength] = decodeBencode(bencodedValue.substring(offset));
-            offset += valueLength;
-            decodedDict[decodedKey as string] = decodedValue;
-        }
-
-        return [decodedDict, offset + 1];
+        return dictDecoder(bencodedValue);
     }
 
     throw new Error("Only strings are supported at the moment");
+}
+
+function encodeBencode(data: any): string {
+    return dictEncoder(data);
+}
+
+function getInfoFromTorrent(fileName: string): string {
+    const bencodedValue = fs.readFileSync(fileName, {
+        encoding: "binary",
+        flag: "r"
+    });
+
+    const decodedDictionary = dictDecoder(bencodedValue)[0];
+    const infoDict: any = decodedDictionary["info"];
+    const encodedInfoDict = encodeBencode(infoDict);
+    const infoHexString = convertToHash(encodedInfoDict);
+    const decode = decodeBencode(encodedInfoDict);
+
+    return `Info Hash: ${infoHexString} Tracker URL: ${decodedDictionary["announce"]}} Length: ${infoDict["length"]}`
 }
 
 const args = process.argv;
@@ -99,23 +80,24 @@ if (args[2] === "decode") {
 
 if (args[2] === "info") {
     try {
-        const torrentContent = fs.readFileSync(bencodedValue, "utf-8");
-        const [decodedValue, _] = decodeBencode(torrentContent);
-        const torrent = decodedValue as {
-            announce: string
-            info: {
-                length: number,
-                name: string,
-                "piece length": number,
-                pieces: string
-            }
-        }
+        // const torrentContent = fs.readFileSync(bencodedValue, "utf-8");
+        // const [decodedValue, _] = decodeBencode(torrentContent);
+        // const torrent = decodedValue as {
+        //     announce: string
+        //     info: {
+        //         length: number,
+        //         name: string,
+        //         "piece length": number,
+        //         pieces: string
+        //     }
+        // }
+        //
+        // if (!torrent.announce || !torrent.info) {
+        //     throw new Error("Invalid torrent file");
+        // }
 
-        if (!torrent.announce || !torrent.info) {
-            throw new Error("Invalid torrent file");
-        }
-
-        console.log(`Tracker URL: ${torrent.announce}\nLength: ${torrent.info.length}`);
+        const info = getInfoFromTorrent(bencodedValue);
+        console.log(JSON.stringify(info))
     } catch (error: Error | any) {
         console.error(error.message);
     }
