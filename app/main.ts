@@ -64,7 +64,13 @@ function getInfoFromTorrent(fileName: string): string {
     const encodedInfoDict = encodeBencode(infoDict);
     const infoHexString = convertToHash(encodedInfoDict);
 
-    return `Info Hash: ${infoHexString} Tracker URL: ${decodedDictionary["announce"]}} Length: ${infoDict["length"]}`
+    return `
+        Info Hash: ${infoHexString}\r\n 
+        Tracker URL: ${decodedDictionary["announce"]}}\r\n 
+        Length: ${infoDict["length"]}\r\n
+        Piece Length: ${infoDict["pieceLength"]}\r\n
+        Piece Hashes: ${infoDict["pieces"]}\r\n
+        `
 }
 
 const args = process.argv;
