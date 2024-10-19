@@ -2,6 +2,9 @@
 // - decodeBencode("5:hello") -> "hello"
 // - decodeBencode("10:hello12345") -> "hello12345"
 
+import * as console from "node:console";
+import * as fs from "node:fs";
+
 type TBencondedValue = string | number | Array<TBencondedValue> | { [key: string]: TBencondedValue }
 
 function decodeBencode(bencodedValue: string): [TBencondedValue, number] {
@@ -89,6 +92,30 @@ if (args[2] === "decode") {
     try {
         const [decoded, decodedLength] = decodeBencode(bencodedValue);
         console.log(JSON.stringify(decoded));
+    } catch (error: Error | any) {
+        console.error(error.message);
+    }
+}
+
+if (args[2] === "info") {
+    try {
+        const torrentContent = fs.readFileSync(bencodedValue, "utf-8");
+        const [decodedValue, _] = decodeBencode(torrentContent);
+        const torrent = decodedValue as {
+            announce: string
+            info: {
+                length: number,
+                name: string,
+                "piece length": number,
+                pieces: string
+            }
+        }
+
+        if (!torrent.announce || !torrent.info) {
+            throw new Error("Invalid torrent file");
+        }
+
+        console.log(`Tracker URL: ${torrent.announce}\nLength: ${torrent.info.length}`);
     } catch (error: Error | any) {
         console.error(error.message);
     }
