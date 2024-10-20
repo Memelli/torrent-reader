@@ -3,7 +3,6 @@ import * as fs from "node:fs";
 import {dictEncoder, intEncoder, stringEncoder} from "./encoders.ts";
 import {dictDecoder, intDecoder, listDecoder, stringDecoder} from "./decoders.ts";
 import {convertToHash} from "./convert-to-hash.ts";
-import * as console from "node:console";
 
 export type TBencondedValue = string | number | Array<TBencondedValue> | { [key: string]: TBencondedValue }
 
@@ -68,33 +67,17 @@ function getInfoFromTorrent(fileName: string): TorrenData {
             pieces: string
         }
     };
+
     const encodedInfoDict = encodeBencode(decodedDictionary.info);
     const infoHexString = convertToHash(encodedInfoDict);
 
-    // return `
-    //     Info Hash: ${infoHexString}\r\n
-    //     Tracker URL: ${decodedDictionary["announce"]}}\r\n
-    //     Length: ${infoDict["length"]}\r\n
-    //     Piece Length: ${infoDict["pieceLength"]}\r\n
-    //     Piece Hashes: ${infoDict["pieces"]}\r\n
-    //     `
-
-    return {
+       return {
         trackerUrl: decodedDictionary.announce,
         infoHash: infoHexString,
         length: decodedDictionary.info.length,
         pieceLength: decodedDictionary.info["piece length"],
         pieceHashes: decodedDictionary.info.pieces
     }
-}
-
-function getHashes(v: string) {
-    const result: string[] = [];
-    for(let pos = 0; pos < v.length; pos += 20) {
-        result.push(Buffer.from(v.slice(pos, pos + 20), "binary").toString())
-    }
-
-    return result;
 }
 
 const args = process.argv;
@@ -115,21 +98,14 @@ if (args[2] === "info") {
         console.log(`Tracker URL: ${info.trackerUrl}`)
         console.log(`Length: ${info.length}`)
         console.log(`Info Hash: ${info.infoHash}`)
-        console.log(`Piece length: ${info.pieceLength}`)
+        console.log(`Piece Length: ${info.pieceLength}`)
         console.log(`Piece Hashes:`);
-        const pieces = info.pieceHashes.toString() as string;
-
-        let s = 0;
-
-        while (s < pieces.length) {
-
-            console.log(pieces.substring(s, s + 40));
-
-            s += 40;
-
+        const pieceHashes = Buffer.from(info.pieceHashes, "binary");
+        const pieceCount = pieceHashes.length / 20;
+        for (let i = 0; i < pieceCount; i++) {
+            const pieceHash = pieceHashes.slice(i * 20, (i + 1) * 20)
+            console.log(`${pieceHash.toString('hex')}`)
         }
-        // const hashes = getHashes(info.pieceHashes);
-        // hashes.forEach((h) => console.log(h));
 
     } catch (error: Error | any) {
         console.error(error.message);
